@@ -1,0 +1,24 @@
+=================================================================
+  CLASSIFICATION REPORT — EXT. VALIDATION
+=================================================================
+
+--- IDH Mutation (threshold=0.453) ---
+  AUC:       0.7583
+  Accuracy:  0.8176
+  Precision: 0.5735
+  Recall:    0.6094
+  F1-Score:  0.5909
+
+--- 1p/19q Codeletion (threshold=0.226) ---
+  AUC:       0.9549
+  Accuracy:  0.8446
+  Precision: 0.4041
+  Recall:    0.9219
+  F1-Score:  0.5619
+
+--- WHO Grade (threshold=0.906) ---
+  AUC:       0.9278
+  Accuracy:  0.8361
+  Precision: 0.9784
+  Recall:    0.8226
+  F1-Score:  0.8938

@@ -1,0 +1,24 @@
+=================================================================
+  CLASSIFICATION REPORT — TRAINING
+=================================================================
+
+--- IDH Mutation (threshold=0.315) ---
+  AUC:       0.8978
+  Accuracy:  0.8081
+  Precision: 0.6137
+  Recall:    0.8354
+  F1-Score:  0.7076
+
+--- 1p/19q Codeletion (threshold=0.431) ---
+  AUC:       0.9315
+  Accuracy:  0.8470
+  Precision: 0.3596
+  Recall:    0.9423
+  F1-Score:  0.5206
+
+--- WHO Grade (threshold=0.770) ---
+  AUC:       0.9862
+  Accuracy:  0.9419
+  Precision: 0.9869
+  Recall:    0.9383
+  F1-Score:  0.9620
