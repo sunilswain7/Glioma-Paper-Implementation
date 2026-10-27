@@ -13,7 +13,14 @@ curl -s -o /dev/null -w "kaggle %{http_code}\n" https://www.kaggle.com || echo "
 
 echo "===== VENV + PACKAGES ====="
 cd $P
-[ -d env ] || python3 -m venv env
+# pick a Python >= 3.9 (torch 2.5.1 needs it); Astra's anaconda tf_gpu env has 3.9
+PYBIN=""
+for c in python3 /apps/anaconda3/envs/tf_gpu/bin/python3 /apps/anaconda3/bin/python3 python3.11 python3.10 python3.9; do
+  if command -v $c >/dev/null 2>&1 && $c -c "import sys; sys.exit(sys.version_info < (3, 9))"; then PYBIN=$c; break; fi
+done
+[ -n "$PYBIN" ] || { echo "No Python >= 3.9 found"; exit 1; }
+echo "using $PYBIN ($($PYBIN --version))"
+[ -d env ] || $PYBIN -m venv env
 source env/bin/activate
 python -m pip install -q --upgrade pip setuptools wheel
 pip install -q torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu118
