@@ -28,13 +28,16 @@ from .augment import gpu_augment
 from .evaluate import evaluate_split, summarise, tune_et_min
 
 
-def get_args():
+def get_args(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--data_dir", required=True)
     ap.add_argument("--out_dir", required=True)
     ap.add_argument("--exp", required=True)
     ap.add_argument("--n_slices", type=int, default=5)
     ap.add_argument("--base_ch", type=int, default=48)
+    ap.add_argument("--xslice_layers", type=int, default=2)
+    ap.add_argument("--params_json", default=None,
+                    help="JSON of tuned hyper-parameters (from cst2.tune) overriding defaults")
     # split
     ap.add_argument("--fold", type=int, default=0)
     ap.add_argument("--n_folds", type=int, default=5)
@@ -60,7 +63,17 @@ def get_args():
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--in_ram", action="store_true", help="load train volumes into RAM")
     ap.add_argument("--time_limit_h", type=float, default=None)
-    return ap.parse_args()
+    ap.add_argument("--tune", action="store_true", help=argparse.SUPPRESS)  # set by cst2.tune
+    args = ap.parse_args(argv)
+    if args.params_json:
+        with open(args.params_json) as f:
+            tuned = json.load(f)["params"]
+        explicit = {a.split("=")[0].lstrip("-") for a in (argv or __import__("sys").argv[1:])
+                    if a.startswith("--")}
+        for k, v in tuned.items():          # command-line flags (e.g. --n_slices 1) win
+            if k not in explicit:
+                setattr(args, k, v)
+    return args
 
 
 @torch.no_grad()
@@ -77,8 +90,9 @@ def log(run_dir, msg):
         f.write(msg + "\n")
 
 
-def main():
-    args = get_args()
+def main(argv=None, trial=None):
+    """trial: optuna trial when called from cst2.tune (reports val Dice, may prune)."""
+    args = get_args(argv)
     t_start = time.time()
     run_dir = os.path.join(args.out_dir, args.exp)
     os.makedirs(run_dir, exist_ok=True)
@@ -104,7 +118,7 @@ def main():
                         num_workers=args.workers, pin_memory=True, drop_last=True,
                         persistent_workers=args.workers > 0)
 
-    model = CrossSliceUNet(args.n_slices, args.base_ch).to(device)
+    model = CrossSliceUNet(args.n_slices, args.base_ch, layers=args.xslice_layers).to(device)
     ema = copy.deepcopy(model).eval()
     for p in ema.parameters():
         p.requires_grad_(False)
@@ -153,24 +167,34 @@ def main():
             rows, _ = evaluate_split(ema, val_vols, args.n_slices, device, with_hd=False)
             s = summarise(rows)
             rec.update({f"val_{k}": round(s[k], 4) for k in ("WT", "TC", "ET", "mean_dice", "fp_slices")})
+            if trial is not None:
+                import optuna
+                trial.report(s["mean_dice"], ep)
+                if trial.should_prune():
+                    raise optuna.TrialPruned()
             if s["mean_dice"] > best:
                 best, bad = s["mean_dice"], 0
-                torch.save({"model": model.state_dict(), "ema": ema.state_dict(),
-                            "args": vars(args), "epoch": ep, "val": s},
-                           os.path.join(run_dir, "best.pth"))
+                if not args.tune:
+                    torch.save({"model": model.state_dict(), "ema": ema.state_dict(),
+                                "args": vars(args), "epoch": ep, "val": s},
+                               os.path.join(run_dir, "best.pth"))
             else:
                 bad += 1
         history.append(rec)
         log(run_dir, json.dumps(rec))
         with open(os.path.join(run_dir, "history.json"), "w") as f:
             json.dump(history, f, indent=1)
-        torch.save({"model": model.state_dict(), "ema": ema.state_dict(), "opt": opt.state_dict(),
-                    "sched": sched.state_dict(), "epoch": ep, "best": best, "bad": bad,
-                    "history": history}, last_path)
+        if not args.tune:
+            torch.save({"model": model.state_dict(), "ema": ema.state_dict(),
+                        "opt": opt.state_dict(), "sched": sched.state_dict(), "epoch": ep,
+                        "best": best, "bad": bad, "history": history}, last_path)
         if bad >= args.patience:
             stop_reason = "early_stop"; break
         if args.time_limit_h and (time.time() - t_start) / 3600 > args.time_limit_h:
             log(run_dir, "time limit reached -> resubmit the same job to resume"); return
+
+    if args.tune:
+        return best
 
     # ---------------- final: tune ET threshold on VAL, evaluate TEST once ----------------
     ck = torch.load(os.path.join(run_dir, "best.pth"), map_location=device, weights_only=False)
@@ -188,6 +212,8 @@ def main():
                "limit_train": args.limit_train, "n_train": len(tr), "params_M": round(n_params, 2),
                "best_epoch": ck["epoch"], "stop": stop_reason, "et_min": et_min,
                "val_mean_dice": round(best, 4),
+               "hparams": {k: getattr(args, k) for k in ("lr", "weight_decay", "bce_weight",
+                           "fg_weight", "base_ch", "xslice_layers", "batch_size", "epochs")},
                "test": {k: round(v, 4) for k, v in summarise(rows).items()},
                "test_no_postproc": {k: round(v, 4) for k, v in summarise(rows_raw).items()},
                "hours": round((time.time() - t_start) / 3600, 2)}

@@ -36,14 +36,18 @@ def main():
     pending, active = list(plan["runs"]), []
     while pending or active:
         while pending and len(active) < conc:
-            exp, flags = pending.pop(0)
+            exp, flags, *mod = pending.pop(0)
+            mod = mod[0] if mod else "cst2.train"
             os.makedirs(os.path.join(out, exp), exist_ok=True)
-            cmd = [py, "-m", "cst2.train", "--data_dir", data, "--out_dir", out,
-                   "--exp", exp, "--workers", str(workers)] + flags.split()
-            if args.time_limit_h:
+            cmd = [py, "-m", mod, "--data_dir", data, "--out_dir", out,
+                   "--workers", str(workers)] + flags.replace("{RUNS}", out).split()
+            if mod == "cst2.train":
+                cmd += ["--exp", exp]
+            if args.time_limit_h and mod == "cst2.train":
                 cmd += ["--time_limit_h", str(args.time_limit_h)]
             logf = open(os.path.join(out, exp, "stdout.log"), "a")
-            active.append((exp, subprocess.Popen(cmd, cwd=code, stdout=logf,
+            env = dict(os.environ, PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True")
+            active.append((exp, subprocess.Popen(cmd, cwd=code, stdout=logf, env=env,
                                                  stderr=subprocess.STDOUT), logf, time.time()))
             print(f"[{time.strftime('%H:%M')}] started {exp}", flush=True)
         time.sleep(20)
@@ -53,6 +57,8 @@ def main():
                 logf.close(); active.remove(item)
                 print(f"[{time.strftime('%H:%M')}] finished {exp} (exit {proc.returncode}, "
                       f"{(time.time() - t0) / 60:.0f} min)", flush=True)
+    if any(len(r) > 2 for r in plan["runs"]):
+        subprocess.run([py, "-m", "cst2.tune", "--out_dir", out, "--report"], cwd=code)
     subprocess.run([py, os.path.join(code, "astra", "collect.py"), out])
 
 

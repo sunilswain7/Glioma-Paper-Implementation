@@ -35,29 +35,33 @@ def main(out):
         from scipy.stats import wilcoxon
     except ImportError:
         return
-    per = {}
+    per, meta = {}, {}
     for p in glob.glob(os.path.join(out, "*", "test_per_patient.json")):
         exp = os.path.basename(os.path.dirname(p))
         per[exp] = {r["pid"]: r for r in json.load(open(p))["postproc"]}
+        meta[exp] = json.load(open(os.path.join(os.path.dirname(p), "summary.json")))
+    # group runs by (prefix, fold): e.g. final_k1_f0 vs final_kx_f0 -> prefix 'final'
+    groups = {}
+    for e, s in meta.items():
+        groups.setdefault((e.split("_k")[0], s["fold"]), {})[s["n_slices"]] = e
     print("\npaired test-patient comparison vs K=1 (pooled over folds)")
-    for prefix in sorted({e.split("_k")[0] for e in per}):
-        for kb in (3, 5):
-            a_all, b_all = {}, {}
-            for e in per:
-                if e.startswith(prefix + "_k1_"):
-                    eb = e.replace("_k1_", f"_k{kb}_")
-                    if eb in per:
-                        for pid in per[e]:
-                            a_all[(e, pid)], b_all[(e, pid)] = per[e][pid], per[eb][pid]
-            if not a_all:
+    pooled = {}
+    for (prefix, fold), byk in groups.items():
+        if 1 not in byk:
+            continue
+        for k, eb in byk.items():
+            if k == 1:
                 continue
-            keys = list(a_all)
-            line = f"  {prefix} K{kb}-K1 (n={len(keys)}):"
-            for m in ("WT", "TC", "ET", "HD95_WT", "HD95_TC", "HD95_ET", "fp_slices"):
-                d = np.array([b_all[k][m] - a_all[k][m] for k in keys])
-                pv = wilcoxon(d).pvalue if np.any(d != 0) else 1.0
-                line += f" {m} {d.mean():+.3f} (p={pv:.3f})"
-            print(line)
+            ea = byk[1]
+            for pid in per[ea]:
+                pooled.setdefault((prefix, k), []).append((per[ea][pid], per[eb][pid]))
+    for (prefix, k), pairs in sorted(pooled.items()):
+        line = f"  {prefix} K{k}-K1 (n={len(pairs)} patients):"
+        for m in ("WT", "TC", "ET", "HD95_WT", "HD95_TC", "HD95_ET", "fp_slices"):
+            d = np.array([b[m] - a[m] for a, b in pairs])
+            pv = wilcoxon(d).pvalue if np.any(d != 0) else 1.0
+            line += f"\n      {m:<9} {d.mean():+8.3f}  (Wilcoxon p={pv:.3f})"
+        print(line)
 
 
 if __name__ == "__main__":

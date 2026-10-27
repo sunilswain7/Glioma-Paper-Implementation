@@ -120,7 +120,7 @@ def main():
                     weights_only=False)
     a = ck["args"]
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = CrossSliceUNet(a["n_slices"], a["base_ch"]).to(device)
+    model = CrossSliceUNet(a["n_slices"], a["base_ch"], layers=a.get("xslice_layers", 2)).to(device)
     model.load_state_dict(ck["ema"] if ck.get("ema") else ck["model"])
     tr, va, te = make_split(list_patients(args.data_dir), a["fold"], a["n_folds"],
                             seed=a["split_seed"], limit_train=a["limit_train"])
