@@ -63,6 +63,12 @@ for cand in (os.path.join(P, "kaggle.json"), os.path.join(HOME, "kaggle.json")):
         os.makedirs(os.path.join(HOME, ".kaggle"), exist_ok=True)
         shutil.copy(cand, os.path.join(HOME, ".kaggle", "kaggle.json"))
         os.chmod(os.path.join(HOME, ".kaggle", "kaggle.json"), 0o600)
+shards = sorted(glob.glob(os.path.join(P, "data", "brats_npy_part*.tar")))
+if shards and not os.path.exists(os.path.join(NPY, "meta.json")):
+    say("found %d uploaded data shards -> extracting" % len(shards))
+    for t in shards:
+        sh("tar -xf %s -C %s/data" % (t, P))
+    sh("ls %s | wc -l; du -sh %s" % (NPY, NPY), check=False)
 if os.path.exists(os.path.join(NPY, "meta.json")):
     say("preprocessed data already present -> skip download")
 elif os.path.exists(ZIP) and os.path.getsize(ZIP) > 3e9:
