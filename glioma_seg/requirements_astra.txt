@@ -1,0 +1,6 @@
+# Installed on Astra AFTER torch==2.5.1+cu118 (torch is installed separately, see astra/setup_astra.sh)
+numpy
+scipy
+h5py
+nibabel
+kaggle
