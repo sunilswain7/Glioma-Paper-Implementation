@@ -1,0 +1,12 @@
+factor,exp,n_slices,optimizer,scheduler,lr,bce_weight,params_M,best_epoch,WT,TC,ET,mean
+anchor,chosen_k5,5,adamw,cosine,0.0002,0.5,6.7,4,0.7727,0.7225,0.6524,0.7159
+xslice,abl_k1,1,adamw,cosine,0.0002,0.5,4.33,10,0.757,0.6755,0.634,0.6888
+xslice,abl_k3,3,adamw,cosine,0.0002,0.5,6.7,6,0.7645,0.7041,0.6472,0.7053
+optimizer,opt_adam,5,adam,cosine,0.0002,0.5,6.7,6,0.7571,0.7147,0.6477,0.7065
+optimizer,opt_sgd,5,sgd,cosine,0.0002,0.5,6.7,10,0.5995,0.0265,0.0374,0.2211
+scheduler,sched_none,5,adamw,none,0.0002,0.5,6.7,4,0.7806,0.7214,0.6703,0.7241
+scheduler,sched_step,5,adamw,step,0.0002,0.5,6.7,8,0.7621,0.6348,0.5702,0.6557
+loss,loss_diceonly,5,adamw,cosine,0.0002,0.0,6.7,4,0.7755,0.6712,0.6724,0.7063
+loss,loss_bceonly,5,adamw,cosine,0.0002,1.0,6.7,6,0.7388,0.7002,0.6322,0.6904
+lr,lr_1e3,5,adamw,cosine,0.001,0.5,6.7,10,0.758,0.6828,0.641,0.694
+lr,lr_1e4,5,adamw,cosine,0.0001,0.5,6.7,9,0.7507,0.6671,0.6118,0.6765

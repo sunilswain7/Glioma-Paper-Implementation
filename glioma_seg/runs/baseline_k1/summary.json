@@ -1,0 +1,15 @@
+{
+  "exp": "baseline_k1",
+  "n_slices": 1,
+  "optimizer": "adamw",
+  "scheduler": "cosine",
+  "lr": 0.0002,
+  "bce_weight": 0.5,
+  "epochs": 30,
+  "params_M": 4.33,
+  "best_epoch": 23,
+  "WT": 0.7612,
+  "TC": 0.811,
+  "ET": 0.8132,
+  "mean": 0.7952
+}

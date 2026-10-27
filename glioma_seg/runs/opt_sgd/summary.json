@@ -1,0 +1,15 @@
+{
+  "exp": "opt_sgd",
+  "n_slices": 5,
+  "optimizer": "sgd",
+  "scheduler": "cosine",
+  "lr": 0.0002,
+  "bce_weight": 0.5,
+  "epochs": 10,
+  "params_M": 6.7,
+  "best_epoch": 10,
+  "WT": 0.5995,
+  "TC": 0.0265,
+  "ET": 0.0374,
+  "mean": 0.2211
+}

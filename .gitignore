@@ -1,0 +1,7 @@
+Brats datset/
+.claude
+__pycache__/
+*.pyc
+# model checkpoints stay local (too big for git)
+*.pth
+archive_previous_semester/glioma2/

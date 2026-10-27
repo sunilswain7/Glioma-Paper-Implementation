@@ -1,0 +1,15 @@
+{
+  "exp": "abl_k3",
+  "n_slices": 3,
+  "optimizer": "adamw",
+  "scheduler": "cosine",
+  "lr": 0.0002,
+  "bce_weight": 0.5,
+  "epochs": 10,
+  "params_M": 6.7,
+  "best_epoch": 6,
+  "WT": 0.7645,
+  "TC": 0.7041,
+  "ET": 0.6472,
+  "mean": 0.7053
+}

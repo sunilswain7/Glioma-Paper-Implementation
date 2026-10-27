@@ -1,0 +1,24 @@
+=================================================================
+  CLASSIFICATION REPORT — TRAIN SET
+=================================================================
+
+--- IDH Mutation ---
+  AUC:       0.8153
+  Accuracy:  0.7270
+  Precision: 0.7284
+  Recall:    0.8026
+  F1-Score:  0.7637
+
+--- 1p/19q Codeletion ---
+  AUC:       0.6630
+  Accuracy:  0.7658
+  Precision: 0.3731
+  Recall:    0.3731
+  F1-Score:  0.3731
+
+--- WHO Grade ---
+  AUC:       0.8431
+  Accuracy:  0.7464
+  Precision: 0.6779
+  Recall:    0.8344
+  F1-Score:  0.7480

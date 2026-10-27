@@ -1,0 +1,24 @@
+=================================================================
+  CLASSIFICATION REPORT — TEST SET
+=================================================================
+
+--- IDH Mutation ---
+  AUC:       0.7668
+  Accuracy:  0.6725
+  Precision: 0.6584
+  Recall:    0.8409
+  F1-Score:  0.7385
+
+--- 1p/19q Codeletion ---
+  AUC:       0.6253
+  Accuracy:  0.7200
+  Precision: 0.2247
+  Recall:    0.3175
+  F1-Score:  0.2632
+
+--- WHO Grade ---
+  AUC:       0.7859
+  Accuracy:  0.7200
+  Precision: 0.6753
+  Recall:    0.7278
+  F1-Score:  0.7005

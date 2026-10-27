@@ -1,0 +1,15 @@
+{
+  "exp": "opt_adam",
+  "n_slices": 5,
+  "optimizer": "adam",
+  "scheduler": "cosine",
+  "lr": 0.0002,
+  "bce_weight": 0.5,
+  "epochs": 10,
+  "params_M": 6.7,
+  "best_epoch": 6,
+  "WT": 0.7571,
+  "TC": 0.7147,
+  "ET": 0.6477,
+  "mean": 0.7065
+}

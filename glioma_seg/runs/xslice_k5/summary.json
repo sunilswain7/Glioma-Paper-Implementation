@@ -1,0 +1,15 @@
+{
+  "exp": "xslice_k5",
+  "n_slices": 5,
+  "optimizer": "adamw",
+  "scheduler": "cosine",
+  "lr": 0.0002,
+  "bce_weight": 0.5,
+  "epochs": 30,
+  "params_M": 6.7,
+  "best_epoch": 26,
+  "WT": 0.7582,
+  "TC": 0.8053,
+  "ET": 0.8071,
+  "mean": 0.7902
+}

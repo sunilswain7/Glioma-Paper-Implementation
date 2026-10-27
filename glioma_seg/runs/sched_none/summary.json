@@ -1,0 +1,15 @@
+{
+  "exp": "sched_none",
+  "n_slices": 5,
+  "optimizer": "adamw",
+  "scheduler": "none",
+  "lr": 0.0002,
+  "bce_weight": 0.5,
+  "epochs": 10,
+  "params_M": 6.7,
+  "best_epoch": 4,
+  "WT": 0.7806,
+  "TC": 0.7214,
+  "ET": 0.6703,
+  "mean": 0.7241
+}

@@ -1,0 +1,15 @@
+{
+  "exp": "sched_step",
+  "n_slices": 5,
+  "optimizer": "adamw",
+  "scheduler": "step",
+  "lr": 0.0002,
+  "bce_weight": 0.5,
+  "epochs": 10,
+  "params_M": 6.7,
+  "best_epoch": 8,
+  "WT": 0.7621,
+  "TC": 0.6348,
+  "ET": 0.5702,
+  "mean": 0.6557
+}
