@@ -73,11 +73,23 @@ if os.path.exists(os.path.join(NPY, "meta.json")):
     say("preprocessed data already present -> skip download")
 elif os.path.exists(ZIP) and os.path.getsize(ZIP) > 3e9:
     say("zip already present (%.1f GB)" % (os.path.getsize(ZIP) / 1e9))
-elif not os.path.exists(os.path.join(HOME, ".kaggle", "kaggle.json")):
-    say("!! kaggle.json not found: upload it to %s and resubmit" % P); sys.exit(1)
 else:
-    sh("%s/env/bin/kaggle datasets download -d awsaf49/brats20-dataset-training-validation -p %s/data"
-       % (P, P))
+    # new-style Kaggle token: a text file containing just the token (KGAT_...)
+    env = ""
+    for cand in (os.path.join(P, "kaggle_token.txt"), os.path.join(HOME, "kaggle_token.txt")):
+        if os.path.exists(cand):
+            tok = open(cand).read().strip().split()[-1].split("=")[-1].strip("'\"")
+            env = "KAGGLE_API_TOKEN=%s " % tok
+            os.makedirs(os.path.join(HOME, ".kaggle"), exist_ok=True)
+            with open(os.path.join(HOME, ".kaggle", "access_token"), "w") as f:
+                f.write(tok)
+            os.chmod(os.path.join(HOME, ".kaggle", "access_token"), 0o600)
+            break
+    if not env and not os.path.exists(os.path.join(HOME, ".kaggle", "kaggle.json")):
+        say("!! no Kaggle credentials: upload kaggle_token.txt (or kaggle.json) to %s" % HOME)
+        sys.exit(1)
+    sh("%s%s/env/bin/kaggle datasets download -d awsaf49/brats20-dataset-training-validation -p %s/data"
+       % (env, P, P))
 
 say("===== 4. preprocessing =====")
 if os.path.exists(os.path.join(NPY, "meta.json")):

@@ -24,6 +24,7 @@ echo "using $PYBIN ($($PYBIN --version))"
 source env/bin/activate
 python -m pip install -q --upgrade pip setuptools wheel
 pip install -q torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu118
+pip install -q --upgrade "kaggle>=1.7.4"
 pip install -q -r $P/code/glioma_seg/requirements_astra.txt
 python -c "import torch,nibabel,scipy,h5py; print('torch', torch.__version__, 'cuda', torch.version.cuda)"
 
