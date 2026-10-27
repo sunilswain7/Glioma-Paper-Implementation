@@ -29,4 +29,5 @@ subprocess.run(["$P/env/bin/python", "$P/code/glioma_seg/astra/gpu_test.py"], ch
 print("Done running on Astra", flush=True)
 PYEOF
 echo "Wrote $P/run_on_astra/run_gputest.py"
+python $P/code/glioma_seg/astra/make_jobs.py
 echo "SETUP OK"
