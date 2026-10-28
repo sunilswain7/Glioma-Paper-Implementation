@@ -63,6 +63,8 @@ def get_args(argv=None):
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--in_ram", action="store_true", help="load train volumes into RAM")
     ap.add_argument("--time_limit_h", type=float, default=None)
+    ap.add_argument("--deadline_h", type=float, default=None,
+                    help="stop training after this many hours and still do the final test evaluation")
     ap.add_argument("--tune", action="store_true", help=argparse.SUPPRESS)  # set by cst2.tune
     args = ap.parse_args(argv)
     if args.params_json:
@@ -190,6 +192,8 @@ def main(argv=None, trial=None):
                         "best": best, "bad": bad, "history": history}, last_path)
         if bad >= args.patience:
             stop_reason = "early_stop"; break
+        if args.deadline_h and (time.time() - t_start) / 3600 > args.deadline_h:
+            stop_reason = "deadline"; break
         if args.time_limit_h and (time.time() - t_start) / 3600 > args.time_limit_h:
             log(run_dir, "time limit reached -> resubmit the same job to resume"); return
 

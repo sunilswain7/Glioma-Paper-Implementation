@@ -5,8 +5,11 @@ themselves once summary.json exists; the Optuna study resumes from its journal.
 
 Run entry = (name, flags) for cst2.train, or (name, flags, "cst2.tune").
 {RUNS} in flags is replaced by the project's runs directory.
+
+Budgets are sized for the single lab day (28 Oct): every run stops at its
+--deadline_h and still evaluates on the test patients.
 """
-COMMON = "--epochs 60 --iters_per_epoch 500 --batch_size 32"
+COMMON = "--epochs 30 --iters_per_epoch 400 --batch_size 32 --deadline_h 1.5"
 BEST = "--params_json {RUNS}/optuna_best.json"
 
 
@@ -25,17 +28,18 @@ PLANS = {
     ]),
     # Optuna search: 3 workers share one study on one GPU (stops after timeout_h)
     "tune": dict(concurrency=3, runs=[
-        (f"tune_w{w}", f"--worker {w} --timeout_h 3.0", "cst2.tune") for w in range(3)
+        (f"tune_w{w}", f"--worker {w} --timeout_h 1.25 --epochs 8 --iters 200", "cst2.tune")
+        for w in range(3)
     ]),
     # safety net with the v1-sweep defaults (K=5 vs K=1), in case tuning disappoints
     "safety": dict(concurrency=2, runs=[
         ("safe_k5_f0", f"--n_slices 5 --fold 0 {COMMON}"),
         ("safe_k1_f0", f"--n_slices 1 --fold 0 {COMMON}"),
     ]),
-    # final comparison with tuned settings: one plan per pair of folds (2 GPUs -> 4 folds)
-    "final_f01": dict(concurrency=4, runs=final(0) + final(1)),
-    "final_f23": dict(concurrency=4, runs=final(2) + final(3)),
-    "final_f4": dict(concurrency=2, runs=final(4)),
+    # final comparison with tuned settings: one GPU job per fold
+    "final_f0": dict(concurrency=2, runs=final(0)),
+    "final_f1": dict(concurrency=2, runs=final(1)),
+    "final_f2": dict(concurrency=2, runs=final(2)),
     # optional: data-size ablation on fold 0 (same val/test patients for every size)
     "datasize": dict(concurrency=4, runs=[
         (f"ds{n}_k{k}_f0", f"{BEST} --n_slices {k} --fold 0 --limit_train {n} {COMMON}"

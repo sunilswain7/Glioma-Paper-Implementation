@@ -14,8 +14,9 @@ PY = f"{P}/env/bin/python"
 CODE = f"{P}/code/glioma_seg"
 JOBS = f"{P}/run_on_astra"
 
-TEMPLATE = '''#!/usr/bin/env python3
-import subprocess
+# NOTE: no '#!' first line -- Astra's Shell Script app fails to launch
+# '#!/usr/bin/env python3' scripts but runs plain Python files fine.
+TEMPLATE = '''import subprocess
 print("Start running on Astra: {name}", flush=True)
 subprocess.run({cmd!r}, cwd={cwd!r}, check=True)
 print("Done running on Astra: {name}", flush=True)
@@ -31,7 +32,7 @@ def write(name, cmd, cwd=CODE):
 
 os.makedirs(JOBS, exist_ok=True)
 write("preprocess", [PY, "-m", "cst2.preprocess",
-                     "--zip", f"{P}/data/brats20-dataset-training-validation.zip",
+                     "--zip", f"{P}/data/brats.zip",
                      "--out", f"{P}/data/brats_npy", "--workers", "16"])
 for plan in PLANS:
     write(plan, [PY, f"{CODE}/astra/run_many.py", plan, "--project", P])

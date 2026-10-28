@@ -31,7 +31,16 @@ def main():
     workers = max(2, ncpu // conc - 1)
     print(f"plan {args.plan}: {len(plan['runs'])} runs, {conc} at a time, "
           f"{ncpu} CPUs -> {workers} loader workers each", flush=True)
-    os.system("nvidia-smi --query-gpu=name,memory.total --format=csv")
+    os.system("nvidia-smi --query-gpu=index,name,memory.used,memory.total --format=csv")
+    if "CUDA_VISIBLE_DEVICES" not in os.environ:
+        # both GPUs of a node are visible to every job: use the least-used one
+        out_q = subprocess.run(["nvidia-smi", "--query-gpu=index,memory.used",
+                                "--format=csv,noheader,nounits"],
+                               stdout=subprocess.PIPE, universal_newlines=True).stdout
+        free = min((int(m), i.strip()) for i, m in
+                   (l.split(",") for l in out_q.strip().splitlines()))[1]
+        os.environ["CUDA_VISIBLE_DEVICES"] = free
+    print("using GPU", os.environ["CUDA_VISIBLE_DEVICES"], flush=True)
 
     pending, active = list(plan["runs"]), []
     while pending or active:
