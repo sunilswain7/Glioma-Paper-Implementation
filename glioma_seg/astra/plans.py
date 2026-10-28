@@ -54,6 +54,8 @@ PLANS = {
     "long_f0": dict(concurrency=2, runs=long(0)),
     "long_f1": dict(concurrency=2, runs=long(1)),
     "long_f2": dict(concurrency=2, runs=long(2)),
+    "long_f3": dict(concurrency=2, runs=long(3)),
+    "long_f4": dict(concurrency=2, runs=long(4)),
     # optional: data-size ablation on fold 0 (same val/test patients for every size)
     "datasize": dict(concurrency=4, runs=[
         (f"ds{n}_k{k}_f0", f"{BEST} --n_slices {k} --fold 0 --limit_train {n} {COMMON}"
