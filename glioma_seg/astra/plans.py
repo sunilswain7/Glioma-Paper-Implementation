@@ -21,12 +21,13 @@ def final(fold):
             (f"final_k1_f{fold}", f"{BEST} --n_slices 1 --fold {fold} {FINAL}")]
 
 
-LONG = "--epochs 200 --iters_per_epoch 400 --batch_size 32 --val_every 4 --patience 12"
+LONG = "--epochs 150 --iters_per_epoch 400 --batch_size 32 --val_every 4 --patience 10"
 
 
-def long(fold):
-    return [(f"long_kx_f{fold}", f"{BEST} --fold {fold} {LONG}"),
-            (f"long_k1_f{fold}", f"{BEST} --n_slices 1 --fold {fold} {LONG}")]
+def long(fold, deadline_h=15):
+    flags = f"{LONG} --deadline_h {deadline_h}"
+    return [(f"long_kx_f{fold}", f"{BEST} --fold {fold} {flags}"),
+            (f"long_k1_f{fold}", f"{BEST} --n_slices 1 --fold {fold} {flags}")]
 
 
 PLANS = {
@@ -49,13 +50,13 @@ PLANS = {
     "final_f0": dict(concurrency=2, runs=final(0)),
     "final_f1": dict(concurrency=2, runs=final(1)),
     "final_f2": dict(concurrency=2, runs=final(2)),
-    # OVERNIGHT (only if we can log in next day): 200 epochs, no deadline, early stopping
-    # after 12 validation checks (48 epochs) without improvement. One GPU job per fold.
-    "long_f0": dict(concurrency=2, runs=long(0)),
-    "long_f1": dict(concurrency=2, runs=long(1)),
-    "long_f2": dict(concurrency=2, runs=long(2)),
-    "long_f3": dict(concurrency=2, runs=long(3)),
-    "long_f4": dict(concurrency=2, runs=long(4)),
+    # OVERNIGHT, max 2 GPU jobs allowed: each job = 2 folds x (tuned K, K=1) = 4 runs on
+    # one A100 (~33 GB). 150 epochs, early stop after 10 checks (40 epochs) w/o improvement,
+    # hard stop + test evaluation after 15 h.
+    "night_A": dict(concurrency=4, runs=long(0) + long(1)),
+    "night_B": dict(concurrency=4, runs=long(2) + long(3)),
+    # next morning, fold 4 completes 5-fold CV (2 runs on one GPU, stop by 5.5 h)
+    "day_f4": dict(concurrency=2, runs=long(4, deadline_h=5.5)),
     # optional: data-size ablation on fold 0 (same val/test patients for every size)
     "datasize": dict(concurrency=4, runs=[
         (f"ds{n}_k{k}_f0", f"{BEST} --n_slices {k} --fold 0 --limit_train {n} {COMMON}"
