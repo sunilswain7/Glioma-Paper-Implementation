@@ -50,13 +50,13 @@ PLANS = {
     "final_f0": dict(concurrency=2, runs=final(0)),
     "final_f1": dict(concurrency=2, runs=final(1)),
     "final_f2": dict(concurrency=2, runs=final(2)),
-    # OVERNIGHT, max 2 GPU jobs allowed: each job = 2 folds x (tuned K, K=1) = 4 runs on
+    # OVERNIGHT, max 3 GPU jobs allowed: each job = 2 folds x (tuned K, K=1) = 4 runs on
     # one A100 (~33 GB). 150 epochs, early stop after 10 checks (40 epochs) w/o improvement,
     # hard stop + test evaluation after 15 h.
     "night_A": dict(concurrency=4, runs=long(0) + long(1)),
     "night_B": dict(concurrency=4, runs=long(2) + long(3)),
-    # next morning, fold 4 completes 5-fold CV (2 runs on one GPU, stop by 5.5 h)
-    "day_f4": dict(concurrency=2, runs=long(4, deadline_h=5.5)),
+    # third GPU: fold 4 -> full 5-fold CV finishes overnight
+    "night_C": dict(concurrency=2, runs=long(4)),
     # optional: data-size ablation on fold 0 (same val/test patients for every size)
     "datasize": dict(concurrency=4, runs=[
         (f"ds{n}_k{k}_f0", f"{BEST} --n_slices {k} --fold 0 --limit_train {n} {COMMON}"
