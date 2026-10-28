@@ -21,6 +21,14 @@ def final(fold):
             (f"final_k1_f{fold}", f"{BEST} --n_slices 1 --fold {fold} {FINAL}")]
 
 
+LONG = "--epochs 200 --iters_per_epoch 400 --batch_size 32 --val_every 4 --patience 12"
+
+
+def long(fold):
+    return [(f"long_kx_f{fold}", f"{BEST} --fold {fold} {LONG}"),
+            (f"long_k1_f{fold}", f"{BEST} --n_slices 1 --fold {fold} {LONG}")]
+
+
 PLANS = {
     # ~10 min: measures speed + GPU memory, checks the whole pipeline incl. test eval
     "smoke": dict(concurrency=2, runs=[
@@ -41,6 +49,11 @@ PLANS = {
     "final_f0": dict(concurrency=2, runs=final(0)),
     "final_f1": dict(concurrency=2, runs=final(1)),
     "final_f2": dict(concurrency=2, runs=final(2)),
+    # OVERNIGHT (only if we can log in next day): 200 epochs, no deadline, early stopping
+    # after 12 validation checks (48 epochs) without improvement. One GPU job per fold.
+    "long_f0": dict(concurrency=2, runs=long(0)),
+    "long_f1": dict(concurrency=2, runs=long(1)),
+    "long_f2": dict(concurrency=2, runs=long(2)),
     # optional: data-size ablation on fold 0 (same val/test patients for every size)
     "datasize": dict(concurrency=4, runs=[
         (f"ds{n}_k{k}_f0", f"{BEST} --n_slices {k} --fold 0 --limit_train {n} {COMMON}"
