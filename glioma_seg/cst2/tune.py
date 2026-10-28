@@ -16,6 +16,7 @@ import os
 import json
 import argparse
 import optuna
+import torch
 
 from . import train
 
@@ -40,7 +41,7 @@ def search_space(trial):
         "fg_weight": trial.suggest_float("fg_weight", 1.0, 10.0),
         "n_slices": trial.suggest_categorical("n_slices", [3, 5, 7]),
         "xslice_layers": trial.suggest_int("xslice_layers", 1, 3),
-        "base_ch": trial.suggest_categorical("base_ch", [32, 48, 64]),
+        "base_ch": trial.suggest_categorical("base_ch", [32, 48]),
     }
 
 
@@ -54,7 +55,12 @@ def make_objective(a):
                 "--val_every", "2", "--patience", "100", "--workers", str(a.workers)]
         for k, v in p.items():
             argv += [f"--{k}", str(v)]
-        return train.main(argv, trial=trial)
+        try:
+            return train.main(argv, trial=trial)
+        except torch.cuda.OutOfMemoryError:
+            # config too big for the GPU share -> skip it, keep the process healthy
+            torch.cuda.empty_cache()
+            raise optuna.TrialPruned("CUDA OOM")
     return objective
 
 

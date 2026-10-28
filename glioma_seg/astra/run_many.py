@@ -55,8 +55,7 @@ def main():
             if args.time_limit_h and mod == "cst2.train":
                 cmd += ["--time_limit_h", str(args.time_limit_h)]
             logf = open(os.path.join(out, exp, "stdout.log"), "a")
-            env = dict(os.environ, PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True")
-            active.append((exp, subprocess.Popen(cmd, cwd=code, stdout=logf, env=env,
+            active.append((exp, subprocess.Popen(cmd, cwd=code, stdout=logf,
                                                  stderr=subprocess.STDOUT), logf, time.time()))
             print(f"[{time.strftime('%H:%M')}] started {exp}", flush=True)
         time.sleep(20)

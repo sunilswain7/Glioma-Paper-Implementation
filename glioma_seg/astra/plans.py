@@ -10,14 +10,15 @@ Budgets are sized for the single lab day (28 Oct): every run stops at its
 --deadline_h and still evaluates on the test patients.
 """
 COMMON = "--epochs 30 --iters_per_epoch 400 --batch_size 32 --deadline_h 1.5"
+FINAL = "--epochs 30 --iters_per_epoch 400 --batch_size 32 --deadline_h 1.25"
 BEST = "--params_json {RUNS}/optuna_best.json"
 
 
 def final(fold):
     """Proposed model (Optuna's best settings, incl. its K) vs 2D baseline K=1 with
     the SAME settings -- the only difference is the cross-slice context."""
-    return [(f"final_kx_f{fold}", f"{BEST} --fold {fold} {COMMON}"),
-            (f"final_k1_f{fold}", f"{BEST} --n_slices 1 --fold {fold} {COMMON}")]
+    return [(f"final_kx_f{fold}", f"{BEST} --fold {fold} {FINAL}"),
+            (f"final_k1_f{fold}", f"{BEST} --n_slices 1 --fold {fold} {FINAL}")]
 
 
 PLANS = {
@@ -27,9 +28,9 @@ PLANS = {
         ("smoke_k5", "--n_slices 5 --epochs 2 --iters_per_epoch 100 --val_every 1"),
     ]),
     # Optuna search: 3 workers share one study on one GPU (stops after timeout_h)
-    "tune": dict(concurrency=3, runs=[
-        (f"tune_w{w}", f"--worker {w} --timeout_h 1.25 --epochs 8 --iters 200", "cst2.tune")
-        for w in range(3)
+    "tune": dict(concurrency=2, runs=[
+        (f"tune_w{w}", f"--worker {w} --timeout_h 1.0 --epochs 8 --iters 200", "cst2.tune")
+        for w in range(2)
     ]),
     # safety net with the v1-sweep defaults (K=5 vs K=1), in case tuning disappoints
     "safety": dict(concurrency=2, runs=[
