@@ -14,7 +14,7 @@ FINAL = "--epochs 30 --iters_per_epoch 400 --batch_size 32 --deadline_h 1.25"
 BEST = "--params_json {RUNS}/optuna_best.json"
 
 
-def safe(fold, deadline_h=2.0):
+def safe(fold, deadline_h=3.0):
     flags = f"--fold {fold} --epochs 30 --iters_per_epoch 400 --batch_size 32 --deadline_h {deadline_h}"
     return [(f"safe_k5_f{fold}", f"--n_slices 5 {flags}"),
             (f"safe_k1_f{fold}", f"--n_slices 1 {flags}")]
@@ -53,11 +53,11 @@ PLANS = {
         ("safe_k1_f0", f"--n_slices 1 --fold 0 {COMMON}"),
     ]),
     # same protocol as "safety" (fold 0) on folds 1-4 -> clean 5-fold CV with ONE fixed
-    # protocol (v1-sweep settings, 30 epochs, cosine fully annealed). collect.py pools
-    # all safe_* runs together.
-    "safety_f1": dict(concurrency=2, runs=safe(1)),
-    "safety_f2": dict(concurrency=2, runs=safe(2)),
-    "safety_f34": dict(concurrency=4, runs=safe(3, 3.5) + safe(4, 3.5)),
+    # protocol (v1-sweep settings, 30 epochs, cosine fully annealed). collect.py pools all
+    # safe_* runs. Packed for 3 GPUs under 40 GB each (K=5 peaks ~16 GB, K=1 ~5 GB).
+    "safety_A": dict(concurrency=3, runs=[safe(1)[0], safe(1)[1], safe(4)[1]]),
+    "safety_B": dict(concurrency=3, runs=[safe(2)[0], safe(2)[1], safe(3)[1]]),
+    "safety_C": dict(concurrency=2, runs=[safe(3)[0], safe(4)[0]]),
     # final comparison with tuned settings: one GPU job per fold
     "final_f0": dict(concurrency=2, runs=final(0)),
     "final_f1": dict(concurrency=2, runs=final(1)),
