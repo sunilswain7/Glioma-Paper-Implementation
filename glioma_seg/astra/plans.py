@@ -14,6 +14,12 @@ FINAL = "--epochs 30 --iters_per_epoch 400 --batch_size 32 --deadline_h 1.25"
 BEST = "--params_json {RUNS}/optuna_best.json"
 
 
+def safe(fold, deadline_h=2.0):
+    flags = f"--fold {fold} --epochs 30 --iters_per_epoch 400 --batch_size 32 --deadline_h {deadline_h}"
+    return [(f"safe_k5_f{fold}", f"--n_slices 5 {flags}"),
+            (f"safe_k1_f{fold}", f"--n_slices 1 {flags}")]
+
+
 def final(fold):
     """Proposed model (Optuna's best settings, incl. its K) vs 2D baseline K=1 with
     the SAME settings -- the only difference is the cross-slice context."""
@@ -46,6 +52,12 @@ PLANS = {
         ("safe_k5_f0", f"--n_slices 5 --fold 0 {COMMON}"),
         ("safe_k1_f0", f"--n_slices 1 --fold 0 {COMMON}"),
     ]),
+    # same protocol as "safety" (fold 0) on folds 1-4 -> clean 5-fold CV with ONE fixed
+    # protocol (v1-sweep settings, 30 epochs, cosine fully annealed). collect.py pools
+    # all safe_* runs together.
+    "safety_f1": dict(concurrency=2, runs=safe(1)),
+    "safety_f2": dict(concurrency=2, runs=safe(2)),
+    "safety_f34": dict(concurrency=4, runs=safe(3, 3.5) + safe(4, 3.5)),
     # final comparison with tuned settings: one GPU job per fold
     "final_f0": dict(concurrency=2, runs=final(0)),
     "final_f1": dict(concurrency=2, runs=final(1)),
