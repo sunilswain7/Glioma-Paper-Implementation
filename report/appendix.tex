@@ -1,0 +1,44 @@
+\clearpage
+\appendix\chapter{Source Code and Reproducibility}
+\sloppy
+The complete source code is available in the public repository \url{https://github.com/sunilswain7/Glioma-Paper-Implementation} (folder \texttt{glioma\_seg}). The mid-review prototype is preserved under the tag \texttt{v1-laptop}; the final system corresponds to commit \texttt{c0ac8eb} and later. The repository contains no patient data, credentials or trained weights; the trained checkpoints (about 0.9~GB) and the full results bundle are archived separately by the team.
+
+The package \texttt{cst2} contains the final system: \texttt{preprocess.py} (NIfTI archive to per-patient arrays), \texttt{data.py} (patient-level folds and 2.5D stacks), \texttt{augment.py} (GPU augmentation), \texttt{model.py} (Cross-Slice U-Net), \texttt{losses.py}, \texttt{evaluate.py} (volumetric Dice, HD95, false-positive slices, ET post-processing), \texttt{train.py} and \texttt{tune.py} (Optuna search). The folder \texttt{astra} contains the cluster tooling: environment setup, experiment plans, the parallel job runner, the wrapper generator, the results collector and the bundling script. The folder \texttt{cst} holds the mid-review prototype.
+
+\section{Setup and execution}
+On the Astra cluster the environment is created once from a Jupyter terminal; on other machines the same commands apply with a PyTorch build matching the local CUDA version.
+{\footnotesize\begin{verbatim}
+git clone https://github.com/sunilswain7/Glioma-Paper-Implementation.git code
+bash code/glioma_seg/astra/setup_astra.sh   # venv, torch 2.5.1+cu118,
+                                            # numpy, scipy, nibabel, optuna
+# dataset: Kaggle "awsaf49/brats20-dataset-training-validation" (~4.2 GB zip)
+cd code/glioma_seg
+python -m cst2.preprocess --zip ../../data/brats.zip \
+       --out ../../data/brats_npy --workers 16
+\end{verbatim}}
+A single training run (here fold 0 of the proposed model) and the corresponding baseline are started as follows; each run writes \texttt{summary.json}, \texttt{history.json}, \texttt{test\_per\_patient.json}, \texttt{split.json} and \texttt{best.pth} to its run directory:
+{\footnotesize\begin{verbatim}
+python -m cst2.train --data_dir DATA --out_dir RUNS --exp safe_k5_f0 \
+       --n_slices 5 --fold 0 --epochs 30 --iters_per_epoch 400 --batch_size 32
+python -m cst2.train --data_dir DATA --out_dir RUNS --exp safe_k1_f0 \
+       --n_slices 1 --fold 0 --epochs 30 --iters_per_epoch 400 --batch_size 32
+python -m cst2.tune  --data_dir DATA --out_dir RUNS --worker 0 --timeout_h 1
+python astra/collect.py RUNS        # results table + paired Wilcoxon tests
+\end{verbatim}}
+On Astra, the plans in \texttt{astra/plans.py} group these runs into jobs. Running \texttt{astra/make\_jobs.py} writes one scheduler wrapper per plan into \texttt{\textasciitilde/Project1/run\_on\_astra}, and each wrapper is submitted through \emph{Jobs $\rightarrow$ Shell Script} with the GPU option enabled, queue \texttt{gpuq} and one GPU card. The main experiment of Chapter~6 corresponds to the plans \texttt{safety} (fold 0) and \texttt{safety\_A}, \texttt{safety\_B} and \texttt{safety\_C} (folds 1--4).
+
+\section{Supporting material}
+The configuration of every reported run is stored in its \texttt{summary.json}, and the patient identifiers of each split in \texttt{split.json}. Table~\ref{tab:runs} lists the run directories behind the results in Chapter~6. The figures in this report are generated from the results bundle by \texttt{report/make\_figures.py}.
+
+\begin{table}[htbp]\centering\small
+\caption{Run directories behind the reported results}\label{tab:runs}
+\begin{tabular}{p{4.2cm}p{9.6cm}}\toprule
+\textbf{Runs} & \textbf{Content}\\\midrule
+\texttt{safe\_k\{1,5\}\_f\{0..4\}} & Main five-fold comparison (Tables~\ref{tab:main}--\ref{tab:paired})\\
+\texttt{tune\_w*}, \texttt{optuna\_*} & Optuna search (Table~\ref{tab:optuna})\\
+\texttt{long\_k1\_f*}, \texttt{long\_kx\_f*} & Supplementary long-training experiment (Table~\ref{tab:long})\\
+\texttt{final\_k1\_f\{1,2\}} & Short tuned-setting runs (terminated early to free GPUs; not used in conclusions)\\\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}

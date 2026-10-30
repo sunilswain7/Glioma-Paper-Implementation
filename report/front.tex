@@ -1,0 +1,139 @@
+\begin{document}
+\pagestyle{empty}
+
+{\centering \Large\bfseries \ProjectTitle{}\par}
+\vspace{0.6cm}
+{\centering Project report submitted in partial fulfilment of the requirements for the award of the degree of\par}
+\vspace{0.3cm}
+{\centering \textbf{BACHELOR OF TECHNOLOGY}\par}
+{\centering in\par}
+{\centering \textbf{COMPUTER SCIENCE AND ENGINEERING}\par}
+\vspace{0.4cm}
+{\centering Submitted by\par}
+\vspace{0.2cm}
+{\centering \fontsize{14}{18}\selectfont
+Harinandan G \quad AM.SC.U4CSE23122\par}
+
+{\centering \fontsize{14}{18}\selectfont
+Nived G Nair \quad AM.SC.U4CSE23139\par}
+
+{\centering \fontsize{14}{18}\selectfont
+Satvik Chaudhary \quad AM.SC.U4CSE23142\par}
+
+{\centering \fontsize{14}{18}\selectfont
+Sunil Swaine \quad AM.SC.U4CSE23160\par}
+\vspace{0.4cm}
+{\centering \fontsize{14}{18}\selectfont
+Under the guidance of\par
+Dr. Tintu Vijayan\par
+GUIDEDESIGNATION\par}
+\vspace{0.4cm}
+{\centering \institutionlogo{4.5in}\par}
+\vspace{0.3cm}
+{\centering \textbf{AMRITA SCHOOL OF COMPUTING}\par}
+{\centering \textbf{AMRITA VISHWA VIDYAPEETHAM}\par}
+{\centering \textbf{AMRITAPURI CAMPUS}\par}
+{\centering \textbf{KOLLAM 690525}\par}
+{\centering \textbf{NOVEMBER 2026}\par}
+
+
+\clearpage
+{\centering \institutionlogo{3.7in}\par}
+\vspace{0.3cm}
+{\centering \textbf{DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING}\par}
+{\centering Amrita School of Computing, Amritapuri Campus\par}
+\vspace{0.5cm}
+{\centering \Large\bfseries BONAFIDE CERTIFICATE\par}
+\vspace{0.5cm}
+This is to certify that the project report entitled ``\ProjectTitle{}'', submitted by Harinandan G (AM.SC.U4CSE23122), Nived G Nair (AM.SC.U4CSE23139), Satvik Chaudhary (AM.SC.U4CSE23142) and Sunil Swaine (AM.SC.U4CSE23160), in partial fulfilment of the requirements for the award of the degree of Bachelor of Technology in Computer Science and Engineering at Amrita Vishwa Vidyapeetham, is a bonafide record of the work carried out by them under my guidance and supervision at Amrita School of Computing, Amritapuri, during Semester 7 of the academic year 2026 - 2027.
+
+\vspace{1cm}
+\begin{tabular}{p{.46\textwidth}p{.46\textwidth}} Dr. Tintu Vijayan & COORDINATORNAME \\ Project Guide & Project Coordinator \\ Signature \hrulefill & Signature \hrulefill \\[20pt] CHAIRPERSONNAME &  \\ Chairperson, CSE & Reviewers \\ Signature \hrulefill & Signature \hrulefill \end{tabular}
+
+\vspace{1cm}
+Place: Amritapuri\\
+Date: REPORTDATE
+\clearpage
+\thispagestyle{empty}
+
+{\centering
+\institutionlogo{3.7in}\par
+\vspace{0.4cm}
+\textbf{DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING}\par
+Amrita School of Computing, Amritapuri Campus\par
+\vspace{0.6cm}
+{\Large\bfseries DECLARATION\par}
+}
+
+\vspace{0.5cm}
+
+\noindent
+We, Harinandan G (AM.SC.U4CSE23122), Nived G Nair (AM.SC.U4CSE23139), Satvik Chaudhary (AM.SC.U4CSE23142) and Sunil Swaine (AM.SC.U4CSE23160), hereby declare that the project entitled ``\ProjectTitle{}'' is a record of our original work carried out under the guidance of Dr. Tintu Vijayan, GUIDEDESIGNATION, Department of Computer Science and Engineering, Amrita Vishwa Vidyapeetham, Amritapuri. To the best of our knowledge, this work has not formed the basis for the award of any degree, diploma, fellowship or similar qualification to any candidate at any university. All sources and contributions of others have been appropriately acknowledged.
+
+\vspace{0.5cm}
+
+\noindent
+Place: Amritapuri\\
+Date: REPORTDATE
+
+\vspace{0.7cm}
+
+\noindent
+\begin{tabular}{@{}p{0.60\textwidth}p{0.34\textwidth}@{}}
+\textbf{Student details} & \textbf{Signature of the student} \\[14pt]
+Harinandan G\newline AM.SC.U4CSE23122 & \rule{0.30\textwidth}{0.4pt} \\[18pt]
+Nived G Nair\newline AM.SC.U4CSE23139 & \rule{0.30\textwidth}{0.4pt} \\[18pt]
+Satvik Chaudhary\newline AM.SC.U4CSE23142 & \rule{0.30\textwidth}{0.4pt} \\[18pt]
+Sunil Swaine\newline AM.SC.U4CSE23160 & \rule{0.30\textwidth}{0.4pt}
+\end{tabular}
+
+\vspace{0.8cm}
+
+\noindent
+\textbf{Project Guide:} Dr. Tintu Vijayan
+
+\vspace{0.5cm}
+
+\noindent
+\textbf{Signature of the Project Guide:}
+\rule{4cm}{0.4pt}
+
+\clearpage
+\pagenumbering{roman}
+\pagestyle{plain}
+
+\phantomsection
+\addcontentsline{toc}{chapter}{Acknowledgement}
+{\centering \Large\bfseries ACKNOWLEDGEMENT\par}
+\vspace{0.4cm}
+We express our sincere gratitude to our project guide, Dr. Tintu Vijayan, Department of Computer Science and Engineering, for the continuous guidance provided throughout this project. The suggestion to replace manual trial-and-error tuning with a systematic hyper-parameter search, and the emphasis on a fair, well-justified experimental comparison, shaped the final form of this work.
+
+We thank the Department of Computer Science and Engineering and the Amrita School of Computing, Amritapuri, for providing the academic environment and resources for this project. We are grateful to the institution and the staff of the HPC Lab (N111-A) for granting us access to the Astra high-performance computing facility, including an additional day and overnight GPU time that made the final five-fold evaluation possible, and to the author of the Astra user guide for the clear setup documentation.
+
+We also acknowledge the organisers and contributing institutions of the Multimodal Brain Tumor Segmentation (BraTS) Challenge for making the annotated BraTS 2020 dataset publicly available, and the developers of the open-source software on which this work is built, in particular PyTorch, NumPy, SciPy, NiBabel and Optuna.
+
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{Abstract}
+{\centering \Large\bfseries ABSTRACT\par}
+\vspace{0.4cm}
+Gliomas are the most common malignant primary brain tumours, and precise delineation of their sub-regions on magnetic resonance imaging (MRI) underpins surgical planning, radiotherapy targeting and treatment monitoring. Manual slice-by-slice delineation is slow and varies between experts, while automated two-dimensional (2D) networks process every slice independently and can produce boundaries that are inconsistent through the volume; fully three-dimensional (3D) networks address this but demand large GPU memory. This project addresses these problems in the context of United Nations Sustainable Development Goal 3 (SDG 3), \emph{Good Health and Well-being}: reliable, lightweight automated segmentation can reduce diagnostic delay and radiologist workload, which matters most where specialist capacity is scarce. We adapt the cross-slice transformer idea, originally proposed for lymph-node segmentation in CT, to multi-modal brain MRI. The proposed 2.5D model encodes five neighbouring slices (T1, T1ce, T2 and FLAIR) with a shared U-Net encoder, fuses them with self-attention across the slice axis at the bottleneck, and decodes the centre slice into whole-tumour (WT), tumour-core (TC) and enhancing-tumour (ET) masks. We built a reproducible pipeline with patient-level splits, volumetric BraTS-style evaluation, an Optuna hyper-parameter search, and execution on the institutional Astra A100 cluster. In five-fold cross-validation on all 369 BraTS 2020 training patients, against a 2D U-Net baseline trained identically, the cross-slice model achieved a mean 3D Dice of 0.844 versus 0.839 (WT 0.904 vs 0.898, TC 0.840 vs 0.837, ET 0.789 vs 0.783). Paired Wilcoxon tests over the 369 patients show that the Dice gains are small but statistically significant ($p<0.001$). The larger improvements are in boundary accuracy and slice consistency: 95th-percentile Hausdorff distance fell by 1.8 mm (WT) and 5.1 mm (ET), and slices with false-positive tumour fell by 34\%. These results support cross-slice attention as a compact way to improve volumetric consistency; clinical benefit has not been evaluated and remains an expected outcome.
+
+\vspace{0.4cm}
+\noindent Keywords: Glioma segmentation; Cross-slice transformer; 2.5D deep learning; Multi-modal MRI; BraTS 2020; SDG 3
+
+
+\clearpage
+\tableofcontents
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Figures}
+\listoffigures
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Tables}
+\listoftables
+\clearpage
+\pagenumbering{arabic}
+\pagestyle{plain}
+\EnableProjectHeaders

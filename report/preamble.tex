@@ -1,0 +1,49 @@
+\documentclass[12pt,a4paper,oneside]{report}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage[left=30mm,right=25mm,top=25mm,bottom=25mm]{geometry}
+
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\setlength{\headheight}{30pt}
+\setlength{\headsep}{12pt}
+
+
+\usepackage{graphicx,array,longtable,pdflscape,setspace,booktabs,amsmath,amssymb,tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,calc}
+\usepackage[hidelinks]{hyperref}
+\onehalfspacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setcounter{tocdepth}{1}
+\renewcommand{\contentsname}{Table of Contents}
+\newcommand{\institutionlogo}[1]{\IfFileExists{amrita-logo.png}{\includegraphics[width=#1]{amrita-logo.png}}{\fbox{\parbox{#1}{\centering Amrita Vishwa Vidyapeetham\\Place amrita-logo.png beside this file}}}}
+% Replace this placeholder with your project title.
+\newcommand{\ProjectTitle}{Context-Aware Cross-Slice Transformer Framework for Automated Glioma Segmentation Using Multi-Modal MRI}
+\fancypagestyle{project}{%
+  \fancyhf{}
+  \fancyhead[C]{\parbox{\textwidth}{\centering\small\nouppercase{\ProjectTitle}}}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrulewidth}{0.4pt}
+}
+% Preliminary pages show only a page number.
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+}
+\newcommand{\EnableProjectHeaders}{%
+  \pagestyle{project}%
+  % report uses plain style on chapter-opening pages.
+  \fancypagestyle{plain}{%
+    \fancyhf{}
+    \fancyhead[C]{\parbox{\textwidth}{\centering\small\nouppercase{\ProjectTitle}}}
+    \fancyfoot[C]{\thepage}
+    \renewcommand{\headrulewidth}{0.4pt}
+  }%
+}
+\titlespacing*{\chapter}{0pt}{0pt}{16pt}
+\titlespacing*{\section}{0pt}{10pt}{4pt}
+\titlespacing*{\subsection}{0pt}{8pt}{3pt}
+\titlespacing*{\subsubsection}{0pt}{6pt}{3pt}
+\raggedbottom

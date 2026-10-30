@@ -1,0 +1,178 @@
+\clearpage
+\chapter{Requirements}
+\section{Functional requirements}
+The system is a research pipeline rather than an interactive application, so its functional requirements describe the capabilities needed to carry out and verify the study. Each requirement has an acceptance criterion that was checked during the project.
+
+\textbf{FR1 -- Data preparation.} The pipeline shall read the original BraTS 2020 NIfTI volumes directly from the downloaded archive, select the 369 annotated training cases, normalise intensities per patient and per modality over brain voxels, crop to a fixed in-plane size around the brain and store each patient as memory-mappable arrays. \emph{Acceptance:} all 369 cases are converted, and the preprocessing log reports how many tumour voxels, if any, fall outside the crop.
+
+\textbf{FR2 -- Leakage-free splitting.} The pipeline shall split data at the patient level into five cross-validation folds, with each test fold disjoint from its training and validation patients. \emph{Acceptance:} the stored split files contain no patient in more than one subset, and every patient appears in exactly one test fold.
+
+\textbf{FR3 -- 2.5D model.} The system shall segment the centre slice of a $K$-slice stack into WT, TC and ET masks using the cross-slice transformer, and shall reduce exactly to a 2D U-Net when $K=1$. \emph{Acceptance:} the same code trains both configurations by changing one argument.
+
+\textbf{FR4 -- Training with model selection.} The system shall train with validation-based checkpoint selection, resume automatically after interruption and stop safely before a scheduler time limit while still producing test results. \emph{Acceptance:} interrupted runs resume from their last checkpoint, and every completed run writes a summary with test metrics.
+
+\textbf{FR5 -- Volumetric evaluation.} The system shall segment whole test volumes and compute per-patient 3D Dice, HD95 and false-positive-slice counts following BraTS conventions. \emph{Acceptance:} metrics are computed per patient and averaged with equal weight per patient.
+
+\textbf{FR6 -- Hyper-parameter search.} The system shall run an Optuna search over training hyper-parameters on validation data only, with pruning of unpromising trials. \emph{Acceptance:} the search records every trial and reports the best configuration and parameter importances.
+
+\textbf{FR7 -- Aggregation and statistics.} The system shall aggregate results across runs and folds and perform paired per-patient significance tests between configurations. \emph{Acceptance:} a single command produces the results table and Wilcoxon tests.
+
+\section{Non-functional requirements}
+\textbf{Rigour and validity.} Model comparisons must differ in exactly one factor; test patients must never influence training, model selection or post-processing choices; and claims of improvement must be supported by paired statistical tests across patients. \textbf{Reproducibility.} All experiments must be driven by versioned code and fixed random seeds, with every run's configuration, split and history saved alongside its results. \textbf{Efficiency.} The model must remain lightweight (under about 8 million parameters, comparable to the base CST paper) and train within the lab access window; a single training run should complete in about two hours on one shared A100 GPU. \textbf{Robustness of execution.} Jobs must tolerate preemption and shared-GPU conditions by checkpointing every epoch, selecting the least-loaded visible GPU and failing clearly with logs. \textbf{Privacy and ethics.} Only de-identified public data are used, no patient data are redistributed with the code, and credentials (such as the Kaggle API token) are never committed to the repository.
+
+\section{Hardware requirements}
+Two hardware platforms were used, as summarised in Table~\ref{tab:hardware}. The laptop was sufficient for development and for the preliminary design study but not for full-scale training, because a 4~GB GPU limited the batch size to four stacks and the per-slice HDF5 data made training input-bound at about six minutes per epoch. The final experiments therefore used the Astra cluster.
+
+\begin{table}[htbp]\centering\small
+\caption{Hardware used in the project}\label{tab:hardware}
+\begin{tabular}{p{3.1cm}p{5.3cm}p{5.3cm}}\toprule
+ & \textbf{Development laptop} & \textbf{Astra HPC cluster (final runs)}\\\midrule
+GPU & NVIDIA RTX 3050 Laptop, 4~GB & NVIDIA A100-PCIe, 40~GB (1 per job; 6 in cluster, 3 jobs allowed)\\
+CPU / memory & 16 logical cores, 16~GB RAM & 16 cores and 128~GB RAM per job\\
+Driver / CUDA & CUDA 12.6 build of PyTorch & Driver 520.61.05, CUDA 11.8\\
+Storage & Local NVMe & Shared Lustre file system (\texttt{/home})\\
+Access & Local & Altair Access portal; PBS scheduler, \texttt{gpuq} queue\\
+Role & Development, design study, unit tests & Preprocessing, Optuna search, all reported experiments\\\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Software and data requirements}
+The software stack is listed in Table~\ref{tab:software}. On Astra, the PyTorch version was pinned to 2.5.1 built against CUDA 11.8 because the cluster driver supports CUDA 11.8 at most, and all code was kept compatible with that version.
+
+\begin{table}[htbp]\centering\small
+\caption{Software stack}\label{tab:software}
+\begin{tabular}{p{3.6cm}p{10.4cm}}\toprule
+\textbf{Component} & \textbf{Version and purpose}\\\midrule
+Python & 3.9.15 on Astra (3.13 on the laptop)\\
+PyTorch & 2.5.1+cu118 on Astra (2.7.0 on the laptop); model, bf16 mixed precision\\
+NumPy, SciPy & Array processing; Euclidean distance transform for HD95; Wilcoxon signed-rank test\\
+NiBabel & Reading NIfTI volumes directly from the dataset archive\\
+h5py & Reading the per-slice HDF5 copy used during development\\
+Optuna & Hyper-parameter search (TPE sampler, median pruner, journal storage)\\
+Kaggle CLI / API & Downloading the dataset onto the cluster\\
+Git and GitHub & Version control and code transfer to the cluster\\
+Matplotlib, \LaTeX & Figures and this report\\\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Dataset.} The study uses the BraTS 2020 training set \cite{menze2015,bakas2017,bakas2018}: 369 pre-operative glioma patients from multiple institutions, each with co-registered, skull-stripped T1, T1ce, T2 and FLAIR volumes of $240 \times 240 \times 155$ voxels at 1~mm isotropic resolution, and an expert segmentation with labels 1 (necrotic and non-enhancing core), 2 (peritumoural oedema) and 4 (enhancing tumour). The original NIfTI release was obtained from a public Kaggle mirror of the challenge data (about 4.2~GB compressed) and processed directly from the archive. The BraTS validation cases in the same archive have no public masks and were not used. During development we also used a per-slice HDF5 version of the same 369 patients, in which every slice had been z-scored independently; Section~\ref{sec:evolution} explains why the final pipeline returned to the original volumes.
+
+\textbf{Preprocessing.} For each patient the four modalities are stacked; the brain mask is the set of voxels that are non-zero in any modality; each modality is z-score normalised using the mean and standard deviation of its brain voxels, with the background set to zero; axial slices containing no brain are discarded; and a $192 \times 192$ window centred on the brain's bounding box is cropped. Labels are mapped to the three nested regions WT $=\{1,2,4\}$, TC $=\{1,4\}$ and ET $=\{4\}$. Images are stored as 16-bit floating point and labels as 8-bit integers, about 44~MB per patient.
+
+\textbf{Partitioning.} The 369 patients are shuffled once with a fixed seed (42) and divided into five folds (four of 74 patients and one of 73). For fold $f$, the patients of fold $f$ form the test set, 30 of the remaining patients form the validation set used for checkpoint selection and threshold tuning, and the other 265 (or 266) form the training set. A training set contains about 36,500 slices, of which about 17,500 contain tumour.
+
+\clearpage
+\chapter{Proposed Methodology}
+\section{Design (architecture) or conceptual framework}
+The proposed model, shown in Figure~\ref{fig:arch}, is a 2.5D Cross-Slice U-Net. Its input is a stack of $K$ consecutive axial slices centred on the slice to be segmented, each slice having four channels (FLAIR, T1, T1ce and T2). A single 2D U-Net encoder, whose weights are shared across slices, processes every slice independently and produces a bottleneck feature map at one-eighth resolution together with skip-connection features at three finer scales. At the bottleneck, a cross-slice transformer treats the $K$ feature vectors found at the same spatial position in the $K$ slices as a short sequence of tokens and applies self-attention across this slice axis, so that the centre slice can draw on information from its neighbours. The fused centre-slice features are passed to a U-Net decoder, which also receives the skip connections of the centre slice only, and a final $1 \times 1$ convolution produces three logits per pixel for WT, TC and ET.
+
+The design rests on two assumptions. First, adjacent slices of a glioma are strongly correlated, so features of neighbouring slices carry useful evidence about ambiguous regions in the centre slice. Second, this information is most useful at the bottleneck, where features are semantic and spatially compact; fusing there keeps the attention cheap (sequences of length $K$ at $24 \times 24$ positions for a $192 \times 192$ input), while the centre slice's own skip connections preserve fine boundary detail. Setting $K=1$ removes the transformer and leaves a standard 2D U-Net, so the baseline and the proposed model share every other component.
+
+\begin{figure}[htbp]\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small, node distance=4mm and 6mm,
+  blk/.style={draw=blue!50!black, fill=blue!7, rounded corners=2pt, minimum width=24mm, minimum height=9mm, align=center},
+  xs/.style={draw=orange!70!black, fill=orange!12, rounded corners=2pt, text width=64mm, minimum height=7mm, align=center},
+  io/.style={draw=gray, dashed, rounded corners=2pt, minimum width=24mm, minimum height=9mm, align=center},
+  ar/.style={-{Stealth[length=2mm]}, thick, gray!70!black},
+  sk/.style={-{Stealth[length=2mm]}, thick, dashed, green!45!black}]
+\node[io] (in) {Input stack\\$K \times 4 \times 192 \times 192$};
+\node[blk, below=of in] (e1) {e1: conv block\\$4 \rightarrow 48$, $192^2$};
+\node[blk, below=of e1] (e2) {e2: conv block\\$48 \rightarrow 96$, $96^2$};
+\node[blk, below=of e2] (e3) {e3: conv block\\$96 \rightarrow 192$, $48^2$};
+\node[blk, below=of e3] (e4) {e4: bottleneck\\$192 \rightarrow 384$, $24^2$};
+\node[io, right=62mm of in] (out) {Output: WT, TC, ET\\$3 \times 192 \times 192$};
+\node[blk, below=of out] (d1) {d1: up + conv\\$96 \rightarrow 48 \rightarrow 3$};
+\node[blk, below=of d1] (d2) {d2: up + conv\\$192 \rightarrow 96$};
+\node[blk, below=of d2] (d3) {d3: up + conv\\$384 \rightarrow 192$};
+\node[xs, below=16mm of $(e4)!0.5!(d3)$, yshift=-6mm] (t1) {Tokens per position: $(B \cdot 24^2) \times K \times 384$};
+\node[xs, below=2mm of t1] (t2) {+ learned slice-position embedding $P \in \mathbb{R}^{K \times 384}$};
+\node[xs, below=2mm of t2] (t3) {2 transformer layers (4 heads, FFN 768)};
+\node[xs, below=2mm of t3] (t4) {take centre-slice token $\rightarrow 384 \times 24 \times 24$};
+\node[draw=orange!70!black, thick, rounded corners, fit=(t1)(t4), inner sep=3mm, label={[orange!60!black, font=\small\bfseries]below:Cross-slice transformer (novel module; removed when $K=1$)}] (box) {};
+\draw[ar] (in) -- (e1); \draw[ar] (e1) -- (e2); \draw[ar] (e2) -- (e3); \draw[ar] (e3) -- (e4);
+\draw[ar] (e4) |- node[pos=0.25, left, font=\scriptsize]{$K$ feature maps} (box.west);
+\draw[ar] (box.east) -| node[pos=0.75, right, font=\scriptsize]{fused centre} (d3);
+\draw[ar] (d3) -- (d2); \draw[ar] (d2) -- (d1); \draw[ar] (d1) -- (out);
+\draw[sk] (e1) -- node[above, font=\scriptsize]{centre-slice skip} (d1);
+\draw[sk] (e2) -- (d2); \draw[sk] (e3) -- (d3);
+\node[left=2mm of e2, rotate=90, anchor=south, font=\scriptsize\bfseries, gray] {SHARED 2D ENCODER};
+\node[right=2mm of d2, rotate=-90, anchor=south, font=\scriptsize\bfseries, gray] {2D DECODER};
+\end{tikzpicture}}
+\caption{Architecture of the proposed 2.5D Cross-Slice U-Net (shapes for $K=5$, base width 48)}\label{fig:arch}
+\end{figure}
+
+\section{Proposed approach and procedure}
+\subsection{2.5D input construction}
+For a target slice $z$ of a patient volume with $S$ slices, the input stack contains slices $z-h, \dots, z+h$ with $h = \lfloor K/2 \rfloor$. At the top and bottom of the volume, indices outside $[0, S-1]$ are clamped to the nearest valid slice, so every slice can be a target. The label of the stack is the three-region mask of slice $z$.
+
+\subsection{Network}
+Each conv block applies two $3 \times 3$ convolutions, each followed by batch normalisation and ReLU; the encoder halves the resolution with $2 \times 2$ max pooling between blocks, and the decoder doubles it with $2 \times 2$ transposed convolutions before concatenating the corresponding skip features. With base width 48 the encoder produces bottleneck features $F_k \in \mathbb{R}^{384 \times 24 \times 24}$ for each slice $k \in \{-h, \dots, h\}$. For every batch element and spatial position $(i,j)$, the cross-slice transformer forms the token sequence
+\begin{equation}
+X_{ij} = \big[\,F_{-h}(i,j);\ \dots;\ F_{h}(i,j)\,\big] + P, \qquad X_{ij} \in \mathbb{R}^{K \times 384},
+\end{equation}
+where $P$ is a learned slice-position embedding with one vector per slice offset, so that the network can distinguish the centre slice from slices above and below it. Two standard transformer encoder layers \cite{vaswani2017} then apply multi-head self-attention,
+\begin{equation}
+\mathrm{Attention}(Q,K,V) = \mathrm{softmax}\!\left(\frac{QK^{\top}}{\sqrt{d_k}}\right)V,
+\end{equation}
+with four heads, a feed-forward width of 768 and dropout 0.1, followed by residual connections and layer normalisation. Only the output token of the centre slice is kept, reshaped into a $384 \times 24 \times 24$ map and decoded. The proposed model has 6.70~M parameters, of which the cross-slice transformer contributes 2.37~M; the $K=1$ baseline has 4.33~M.
+
+\subsection{Training objective and sampling}
+The network is trained directly on the three overlapping evaluation regions with independent sigmoid outputs. With predicted probabilities $p$, binary targets $t$, regions $r \in \{\mathrm{WT}, \mathrm{TC}, \mathrm{ET}\}$ and smoothing constant $s=1$, the loss combines soft Dice and binary cross-entropy:
+\begin{equation}
+\mathcal{L} = (1-\lambda)\left[1 - \frac{1}{3}\sum_{r}\frac{2\sum p_r t_r + s}{\sum p_r + \sum t_r + s}\right] + \lambda\,\mathrm{BCE}(p,t), \qquad \lambda = 0.5 .
+\end{equation}
+All slices, including those without tumour, are used for training, so that the model learns to predict empty masks on healthy tissue. Because only about 48\% of slices contain tumour and tumour pixels are a small fraction of each slice, tumour-containing slices are drawn five times as often as other slices by weighted random sampling, following the oversampling strategy of the base paper \cite{abdikenov2026}.
+
+\subsection{Augmentation}
+Augmentation is applied on the GPU to whole batches. The same geometric transformation is applied to all $K$ slices of a stack and to its mask, so the alignment between slices is preserved: random left--right and up--down flips (probability 0.5 each), a random rotation of up to $\pm 15^{\circ}$ combined with isotropic scaling between 0.85 and 1.15 (probability 0.5), and, on brain voxels only, a random per-modality intensity scaling in $[0.9, 1.1]$ and shift in $[-0.1, 0.1]$ plus Gaussian noise with standard deviation 0.05 (probability 0.5).
+
+\subsection{Optimisation}
+The model is optimised with AdamW \cite{loshchilov2019} (learning rate $2 \times 10^{-4}$, weight decay $10^{-5}$) using batches of 32 stacks. Training lasts 30 epochs of 400 iterations, that is, about 384,000 sampled stacks or roughly ten passes over the training slices. The learning rate rises linearly during the first three epochs and then follows a cosine decay to $10^{-6}$ at the end of training. Gradients are clipped to a norm of 1.0, computation uses bfloat16 mixed precision, and an exponential moving average (EMA) of the weights, $\theta_{\mathrm{EMA}} \leftarrow 0.999\,\theta_{\mathrm{EMA}} + 0.001\,\theta$, is maintained and used for validation and testing. Every two epochs the EMA model segments all 30 validation volumes, and the checkpoint with the highest validation mean 3D Dice is kept.
+
+\subsection{Inference and post-processing}
+At test time each patient volume is segmented slice by slice using the same clamped $K$-slice stacks, the sigmoid outputs are restricted to the brain mask, and each region is thresholded at 0.5. Some patients have no enhancing tumour, and in such cases even a few falsely predicted ET voxels give an ET Dice of zero. Following common BraTS practice, a predicted ET region smaller than a threshold $T$ voxels is therefore removed. $T$ is chosen per run from $\{0, 50, 100, 200, 300, 500, 750, 1000\}$ to maximise the mean ET Dice on the validation patients, and it is then applied unchanged to the test patients.
+
+\subsection{Hyper-parameter justification}
+The training hyper-parameters were justified in two stages. In the first stage, during the mid-review phase, a one-factor-at-a-time design study varied one choice at a time around a reference configuration on a reduced setting (16 training volumes, 10 epochs, the per-slice evaluation used at the time) that the laptop GPU could handle. Its results, summarised in Table~\ref{tab:sweep}, supported $K=5$ over $K=3$ and $K=1$, AdamW, the combined Dice and BCE loss and a learning rate of $2 \times 10^{-4}$. The scheduler comparison was inconclusive at that short budget, and plain SGD with the same learning rate collapsed but matched AdamW once its learning rate was tuned. Because these numbers come from four validation volumes and an earlier metric, they are treated as preliminary evidence only.
+
+\begin{table}[htbp]\centering\small
+\caption{Preliminary one-factor-at-a-time design study (mid-review protocol: 16 training volumes, 10 epochs, per-slice validation Dice)}\label{tab:sweep}
+\resizebox{\textwidth}{!}{\begin{tabular}{llc|llc}\toprule
+\textbf{Factor} & \textbf{Setting} & \textbf{Mean Dice} & \textbf{Factor} & \textbf{Setting} & \textbf{Mean Dice}\\\midrule
+Slices $K$ & 1 & 0.689 & Loss & Dice + BCE (chosen) & 0.716\\
+ & 3 & 0.705 & & Dice only & 0.706\\
+ & 5 (chosen) & 0.716 & & BCE only & 0.690\\\midrule
+Optimiser & AdamW (chosen) & 0.716 & Learning rate & $10^{-3}$ & 0.694\\
+ & Adam & 0.707 & & $2 \times 10^{-4}$ (chosen) & 0.716\\
+ & SGD, lr $2 \times 10^{-4}$ & 0.221 & & $10^{-4}$ & 0.677\\
+ & SGD, lr $10^{-2}$ & 0.717 & Scheduler & cosine / none / step & 0.716 / 0.724 / 0.656\\\bottomrule
+\end{tabular}}
+\end{table}
+
+In the second stage, following our guide's recommendation, an automated search with Optuna \cite{akiba2019} was run on the Astra cluster. The search used a Tree-structured Parzen Estimator sampler and a median pruner that stops trials performing below the median of earlier trials after the first four epochs. The search space covered the learning rate ($5 \times 10^{-5}$ to $10^{-3}$, log scale), weight decay ($10^{-6}$ to $10^{-3}$, log scale), BCE weight $\lambda$ (0.2--0.8), tumour-slice oversampling factor (1--10), number of slices $K \in \{3,5,7\}$, number of transformer layers (1--3) and base width $\in \{32, 48\}$. Each trial trained for 8 short epochs of 200 iterations on fold 0, and its score was the validation mean 3D Dice; test patients were never used. Two trials ran concurrently on one A100 for about one hour. The results are reported in Section~\ref{sec:optuna}.
+
+\subsection{Evolution from the mid-review prototype}\label{sec:evolution}
+The mid-review prototype (v1) was developed under the 4~GB laptop constraint. Before moving to the cluster we audited it and re-evaluated its saved checkpoints with the standard BraTS protocol. The audit found that v1's metric computed Dice per slice, only on slices containing tumour, and counted a region absent from both prediction and ground truth as a perfect score. This understated WT and overstated TC and ET: v1 reported a mean Dice of 0.795 for the baseline, but the volumetric per-patient Dice of the same checkpoint was 0.831 (WT 0.881, TC 0.848, ET 0.764). The re-evaluation also showed that the v1 cross-slice model, although tied in Dice, produced 8.7 slices per patient with false-positive tumour against 17.7 for the baseline and roughly halved the WT boundary error (HD95 9.2~mm against 17.9~mm). This was the first evidence that the benefit of cross-slice context lies mainly in volumetric consistency.
+
+Table~\ref{tab:evolution} lists the issues found and the corresponding changes made for the final system (v2). The two most consequential were the evaluation protocol and the training data: v1 trained and validated only on tumour-containing slices, so the model never learned to predict empty masks on healthy tissue, and v1's per-slice HDF5 data had been normalised slice by slice, so neighbouring slices had inconsistent intensity scales, which directly undermines cross-slice fusion. v1 also used the same patients for checkpoint selection and for reporting, had no test split, and added a single shared position vector to all slice tokens, which prevented the transformer from distinguishing slice order.
+
+\begin{table}[htbp]\centering\small
+\caption{Issues found in the mid-review prototype (v1) and changes in the final system (v2)}\label{tab:evolution}
+\begin{tabular}{p{4.6cm}p{4.6cm}p{4.6cm}}\toprule
+\textbf{Aspect} & \textbf{Mid-review prototype (v1)} & \textbf{Final system (v2)}\\\midrule
+Evaluation metric & Per-slice Dice on tumour slices; empty--empty counted as 1 & Per-patient 3D Dice, HD95 and false-positive slices (BraTS rules)\\
+Data splits & Train/validation only; validation also used for reporting & Patient-level 5-fold CV with separate validation and test sets\\
+Training slices & Tumour-containing slices only & All slices, tumour slices oversampled $5\times$\\
+Intensity normalisation & Per-slice z-score including background (pre-made HDF5) & Per-patient, per-modality z-score over brain voxels (original NIfTI)\\
+Slice position encoding & One shared vector for all slices & One learned vector per slice offset\\
+Targets & Raw classes (NCR/NET, ED, ET) & Evaluation regions (WT, TC, ET)\\
+Training recipe & Batch 4, flips only, fp16, no EMA & Batch 32, geometric and intensity augmentation, bf16, warm-up, clipping, EMA\\
+Post-processing & None & Validation-tuned small-ET removal\\
+Scale of evaluation & One split, single run & Five folds, all 369 patients, paired tests\\\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Implementation on the Astra HPC cluster}
+The code was organised as a Python package (\texttt{cst2}) with modules for preprocessing, data loading, augmentation, the model, the loss, evaluation, training and hyper-parameter search, plus a set of cluster utilities. Jobs are submitted through the Altair Access portal as PBS jobs on the \texttt{gpuq} queue, each with one A100. We found that the portal could not launch wrapper scripts beginning with a \texttt{\#!/usr/bin/env python3} line, while plain Python files without that line ran correctly, so the wrapper generator writes such files with absolute paths. Because both GPUs of a node were visible to every job, the job runner selects the least-loaded GPU before starting. Each wrapper runs a predefined \emph{plan} of several trainings concurrently on its GPU. The concurrency is set from the measured memory footprint (about 12.5~GB for $K=5$ and 3.8~GB for $K=1$ at batch 32), after an early configuration of four trainings per GPU exceeded the 40~GB limit. Every run checkpoints each epoch, resumes automatically if resubmitted, and stops at a configurable deadline while still performing its final test evaluation, so that results were guaranteed within the lab window.
