@@ -59,7 +59,18 @@ Matplotlib, \LaTeX & Figures and this report\\\bottomrule
 
 \textbf{Preprocessing.} For each patient the four modalities are stacked; the brain mask is the set of voxels that are non-zero in any modality; each modality is z-score normalised using the mean and standard deviation of its brain voxels, with the background set to zero; axial slices containing no brain are discarded; and a $192 \times 192$ window centred on the brain's bounding box is cropped. Labels are mapped to the three nested regions WT $=\{1,2,4\}$, TC $=\{1,4\}$ and ET $=\{4\}$. Images are stored as 16-bit floating point and labels as 8-bit integers, about 44~MB per patient.
 
-\textbf{Partitioning.} The 369 patients are shuffled once with a fixed seed (42) and divided into five folds (four of 74 patients and one of 73). For fold $f$, the patients of fold $f$ form the test set, 30 of the remaining patients form the validation set used for checkpoint selection and threshold tuning, and the other 265 (or 266) form the training set. A training set contains about 36,500 slices, of which about 17,500 contain tumour.
+\textbf{Partitioning.} The 369 patients are shuffled once with a fixed seed (42) and divided into five folds (four of 74 patients and one of 73). For fold $f$, the patients of fold $f$ form the test set, 30 of the remaining patients form the validation set used for checkpoint selection and threshold tuning, and the other 265 (or 266) form the training set. A training set contains about 36,500 slices, of which about 17,500 contain tumour. Table~\ref{tab:folds} summarises the partition.
+
+\begin{table}[htbp]\centering\small
+\caption{Patient-level five-fold partition of the 369 BraTS 2020 training patients}\label{tab:folds}
+\begin{tabular}{lccccc}\toprule
+\textbf{Fold} & \textbf{0} & \textbf{1} & \textbf{2} & \textbf{3} & \textbf{4}\\\midrule
+Training patients & 265 & 265 & 265 & 265 & 266\\
+Validation patients (checkpoint and threshold selection) & 30 & 30 & 30 & 30 & 30\\
+Test patients (used once) & 74 & 74 & 74 & 74 & 73\\
+Test patients without enhancing tumour & 4 & 6 & 10 & 4 & 3\\\bottomrule
+\end{tabular}
+\end{table}
 
 \clearpage
 \chapter{Proposed Methodology}
@@ -104,6 +115,70 @@ The design rests on two assumptions. First, adjacent slices of a glioma are stro
 \end{figure}
 
 \section{Proposed approach and procedure}
+The complete procedure is summarised in Figure~\ref{fig:workflow}. The original MRI volumes are preprocessed once and divided into five patient-level folds. In every fold the proposed model and the baseline are trained on the same training patients. Each selects its best checkpoint and its post-processing threshold on the same validation patients, and both are then evaluated once on the same unseen test patients. The per-patient results of all folds are finally pooled and compared with paired statistical tests. Algorithms~\ref{alg:train} and~\ref{alg:infer} give the training and inference steps, and the following subsections describe each stage.
+
+\begin{figure}[htbp]\centering
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[font=\small, node distance=5mm,
+  st/.style={draw=blue!50!black, fill=blue!7, rounded corners=2pt, text width=34mm, minimum height=11mm, align=center},
+  hl/.style={draw=orange!70!black, fill=orange!12, rounded corners=2pt, text width=34mm, minimum height=11mm, align=center},
+  ar/.style={-{Stealth[length=2mm]}, thick, gray!70!black}]
+\node[st] (a) {BraTS 2020 NIfTI archive\\369 patients, 4 modalities};
+\node[st, right=of a] (b) {Preprocessing\\brain z-score, crop $192^2$};
+\node[st, right=of b] (c) {Patient-level split\\5 folds: train / val / test};
+\node[hl, below=8mm of c, text width=34mm] (d) {Train both models with identical settings: $K=5$ (cross-slice) and $K=1$ (baseline)};
+\node[st, left=of d] (e) {Select best checkpoint on validation patients};
+\node[st, left=of e] (f) {Tune ET size threshold on validation patients};
+\node[st, below=8mm of f] (g) {Whole-volume inference on test patients (once)};
+\node[st, right=of g] (h) {Per-patient metrics\\Dice, HD95, FP slices};
+\node[st, right=of h] (i) {Pool 5 folds (369 pts)\\paired Wilcoxon tests};
+\draw[ar] (a) -- (b); \draw[ar] (b) -- (c); \draw[ar] (c) -- (d);
+\draw[ar] (d) -- (e); \draw[ar] (e) -- (f); \draw[ar] (f) -- (g); \draw[ar] (g) -- (h); \draw[ar] (h) -- (i);
+\end{tikzpicture}}
+\caption{End-to-end workflow of the study, repeated for each of the five folds}\label{fig:workflow}
+\end{figure}
+
+\begin{algorithm}[htbp]
+\caption{Training one model on one fold}\label{alg:train}
+\begin{algorithmic}[1]
+\REQUIRE training patients $\mathcal{T}$, validation patients $\mathcal{V}$, slice count $K$, epochs $E=30$, iterations per epoch $I=400$, batch size $B=32$
+\STATE initialise network $\theta$ and its EMA copy $\theta_{\mathrm{EMA}} \leftarrow \theta$; best score $s^{*} \leftarrow -1$
+\FOR{epoch $e = 1$ to $E$}
+  \FOR{iteration $= 1$ to $I$}
+    \STATE sample $B$ slices from $\mathcal{T}$, tumour slices with $5\times$ weight
+    \STATE build $K$-slice stacks with edge clamping and region targets (WT, TC, ET)
+    \STATE apply the same random flip, rotation and scaling to every slice of a stack; add intensity jitter
+    \STATE compute loss $\mathcal{L}$ (Dice + BCE) in bfloat16; back-propagate; clip gradient norm to 1
+    \STATE AdamW step with warm-up/cosine learning rate; $\theta_{\mathrm{EMA}} \leftarrow 0.999\,\theta_{\mathrm{EMA}} + 0.001\,\theta$
+  \ENDFOR
+  \IF{$e$ is even \OR $e = E$}
+    \STATE segment every volume in $\mathcal{V}$ with $\theta_{\mathrm{EMA}}$; $s \leftarrow$ mean 3D Dice
+    \IF{$s > s^{*}$}
+      \STATE $s^{*} \leftarrow s$; save $\theta_{\mathrm{EMA}}$ as the best checkpoint
+    \ENDIF
+  \ENDIF
+\ENDFOR
+\STATE choose ET threshold $T$ that maximises mean ET Dice on $\mathcal{V}$ using the best checkpoint
+\RETURN best checkpoint and $T$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[htbp]
+\caption{Segmenting and scoring one test patient}\label{alg:infer}
+\begin{algorithmic}[1]
+\REQUIRE preprocessed volume with $S$ slices, ground truth, best checkpoint, threshold $T$
+\FOR{slice $z = 0$ to $S-1$}
+  \STATE stack slices $\min(\max(z+o,0),S-1)$ for $o = -\lfloor K/2 \rfloor, \dots, \lfloor K/2 \rfloor$
+  \STATE predict sigmoid probabilities for WT, TC and ET of slice $z$
+\ENDFOR
+\STATE set probabilities outside the brain mask to zero; threshold at 0.5
+\IF{predicted ET volume $< T$ voxels}
+  \STATE remove the predicted ET region
+\ENDIF
+\STATE compute 3D Dice and HD95 for WT, TC and ET, and the number of false-positive slices
+\end{algorithmic}
+\end{algorithm}
+
 \subsection{2.5D input construction}
 For a target slice $z$ of a patient volume with $S$ slices, the input stack contains slices $z-h, \dots, z+h$ with $h = \lfloor K/2 \rfloor$. At the top and bottom of the volume, indices outside $[0, S-1]$ are clamped to the nearest valid slice, so every slice can be a target. The label of the stack is the three-region mask of slice $z$.
 
@@ -112,11 +187,11 @@ Each conv block applies two $3 \times 3$ convolutions, each followed by batch no
 \begin{equation}
 X_{ij} = \big[\,F_{-h}(i,j);\ \dots;\ F_{h}(i,j)\,\big] + P, \qquad X_{ij} \in \mathbb{R}^{K \times 384},
 \end{equation}
-where $P$ is a learned slice-position embedding with one vector per slice offset, so that the network can distinguish the centre slice from slices above and below it. Two standard transformer encoder layers \cite{vaswani2017} then apply multi-head self-attention,
+where $P$ is a learned slice-position embedding with one vector per slice offset, so that the network can distinguish the centre slice from slices above and below it. Two standard transformer encoder layers \cite{vaswani2017} then apply multi-head self-attention to each sequence $X_{ij}$. For one attention head with learned projections $W_Q$, $W_C$ and $W_V$, the queries, keys and values are $\mathbf{Q} = X_{ij}W_Q$, $\mathbf{C} = X_{ij}W_C$ and $\mathbf{V} = X_{ij}W_V$, and
 \begin{equation}
-\mathrm{Attention}(Q,K,V) = \mathrm{softmax}\!\left(\frac{QK^{\top}}{\sqrt{d_k}}\right)V,
+\mathrm{Attention}(\mathbf{Q},\mathbf{C},\mathbf{V}) = \mathrm{softmax}\!\left(\frac{\mathbf{Q}\mathbf{C}^{\top}}{\sqrt{d_h}}\right)\mathbf{V},
 \end{equation}
-with four heads, a feed-forward width of 768 and dropout 0.1, followed by residual connections and layer normalisation. Only the output token of the centre slice is kept, reshaped into a $384 \times 24 \times 24$ map and decoded. The proposed model has 6.70~M parameters, of which the cross-slice transformer contributes 2.37~M; the $K=1$ baseline has 4.33~M.
+where $d_h = 384/4 = 96$ is the dimension of each head. The keys are written $\mathbf{C}$ here to avoid confusion with $K$, which throughout this report denotes the number of input slices; the $K \times K$ attention matrix gives, for every slice, how strongly it draws on each of the other slices. The layers use four heads, a feed-forward width of 768 and dropout 0.1, followed by residual connections and layer normalisation. Only the output token of the centre slice is kept, reshaped into a $384 \times 24 \times 24$ map and decoded. The proposed model has 6.70~M parameters, of which the cross-slice transformer contributes 2.37~M; the $K=1$ baseline has 4.33~M.
 
 \subsection{Training objective and sampling}
 The network is trained directly on the three overlapping evaluation regions with independent sigmoid outputs. With predicted probabilities $p$, binary targets $t$, regions $r \in \{\mathrm{WT}, \mathrm{TC}, \mathrm{ET}\}$ and smoothing constant $s=1$, the loss combines soft Dice and binary cross-entropy:
